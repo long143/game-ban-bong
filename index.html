@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        canvas {
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 30px;
+            display: flex;
+            background-color: #a4c545;
+        }
+    </style>
+    <script src="model/Circle.js"></script>
+    <script src="model/Rectangle.js"></script>
+
+
+</head>
+<body>
+<label>Score</label>
+<button id="score"></button>
+<button id="mp3" onclick="onOffNhacNen()">OFF MP3</button>
+<canvas id="myCanvas" width="1000" height="600" style="border: solid red"></canvas>
+</body>
+<script>
+    let nhacNen = new Audio("audio/nhac_nen.mp3")
+    let isNhacNen = false;
+
+    function onOffNhacNen() {
+        isNhacNen = !isNhacNen;
+        if (isNhacNen) {
+            nhacNen.play();
+            document.getElementById('mp3').innerHTML = 'ON MP3'
+            document.getElementById('mp3').style.backgroundColor = 'blue'
+        } else {
+            nhacNen.pause();
+            document.getElementById('mp3').innerHTML = 'OFF MP3'
+            document.getElementById('mp3').style.backgroundColor = 'red'
+        }
+    }
+
+    let score = 0;
+    let canvas = document.getElementById('myCanvas');
+    let ctx = canvas.getContext('2d');
+    let widthCanvas = canvas.width;
+    let heightCanvas = canvas.height;
+    let widthPaddle = 150;
+    let heightPaddle = 20;
+    let xPaddle = (widthCanvas - widthPaddle) / 2;
+    let yPaddle = heightCanvas - heightPaddle;
+    let colorPaddle = 'green';
+    let paddle = new Rectangle(xPaddle, yPaddle, widthPaddle, heightPaddle, colorPaddle)
+    paddle.drawRect(ctx);
+
+    let radius = 15;
+    let xBall = widthCanvas / 2;
+    let yBall = heightCanvas - radius - heightPaddle;
+    let colorBall = 'white'
+    let ball = new Circle(xBall, yBall, radius, colorBall)
+    let dX = 5;
+    let dY = -5;
+    ball.drawCircle(ctx)
+
+    let column = 9;
+    let row = 5;
+    let widthBrick = 90;
+    let heightBrick = 20;
+    let betweenLeftRight = 20;
+    let betweenTopDow = 15;
+    let marginAuto = (widthCanvas - column * widthBrick - (column - 1) * betweenLeftRight) / 2;
+    let marginTop = 40;
+    let colorBrick = '#f2d174';
+    let xBrick = 0;
+    let yBrick = 0;
+    let arrBricks = [];
+
+    function createBricks() {
+        for (let i = 0; i < row; i++) {
+            for (let j = 0; j < column; j++) {
+                xBrick = marginAuto + j * (widthBrick + betweenLeftRight)
+                yBrick = marginTop + i * (heightBrick + betweenTopDow);
+                let brick = new Rectangle(xBrick, yBrick, widthBrick, heightBrick, colorBrick, true);
+                arrBricks.push(brick);
+            }
+        }
+    }
+
+    createBricks();
+    console.log('arrBrick --->', arrBricks)
+
+    function selectKeyBoard(evt) {
+        console.log('evt ---> ', evt.keyCode)
+        switch (evt.keyCode) {
+            case 37:
+                if (paddle.x <= 0) {
+                    return
+                }
+                paddle.moveLeft();
+                console.log('x của paddle --->', paddle.x)
+                break;
+            case 39:
+                if (paddle.x + paddle.width >= widthCanvas) {
+                    return;
+                }
+                paddle.moveRight();
+                break;
+        }
+
+        clearCanvas();
+        paddle.drawRect(ctx);
+    }
+
+    addEventListener('keydown', selectKeyBoard)
+
+    function moveBall() {
+        let request = requestAnimationFrame(moveBall)
+        ball.moveBall(dX,dY)
+        checkCollisionBallAndPaddle();
+        checkCollisionBallAndBrick()
+        if (ball.x + ball.radius >= widthCanvas || ball.x - ball.radius <= 0) {
+            dX = -dX
+        } else if (ball.y - radius <= 0) {
+            dY = -dY;
+        } else if (ball.y + ball.radius === heightCanvas) {
+            alert('Thua!')
+            window.cancelAnimationFrame(request)
+            window.location.reload()
+        }
+
+        // console.log('tọa độ X quả bóng --->', ball.x)
+
+        clearCanvas()
+        ball.drawCircle(ctx)
+        paddle.drawRect(ctx)
+        drawBricks();
+        if (score === arrBricks.length) {
+            alert('WIN! Play Again!')
+            window.cancelAnimationFrame(request)
+            window.location.reload()
+        }
+    }
+
+    moveBall();
+
+    function reload() {
+        alert('WIN')
+        window.location.reload();
+    }
+    //CHECK VA TRẠM: Ball vs Paddle
+    function checkCollisionBallAndPaddle() {
+        if (ball.x >= paddle.x && ball.x <= paddle.x + paddle.width
+            && ball.y + radius === paddle.y) {
+            dY = -dY;
+        } else if (ball.x < paddle.x + paddle.width + radius && ball.x + radius > paddle.x
+            && ball.y + radius > paddle.y) {
+            dX = -dX;
+            dY = -dY;
+        } else if ((ball.x + radius === paddle.x || ball.x - ball.radius === paddle.x + paddle.width) && ball.y > paddle.y) {
+            dX = -dX
+        }
+    }
+
+    //CHECK VA TRẠM: Ball and Brick
+    function checkCollisionBallAndBrick() {
+
+        for (let i = 0; i < arrBricks.length; i++) {
+            if (arrBricks[i].status) {
+                if (ball.x >= arrBricks[i].x && ball.x <= arrBricks[i].x + widthBrick &&
+                    (ball.y - ball.radius === arrBricks[i].y + heightBrick ||
+                        ball.y + radius === arrBricks[i].y)) {
+                    // alert('va trạm trong')
+                    dY = -dY
+                    arrBricks[i].status = false;
+                    score++;
+                    // document.getElementById('score').innerHTML = score;
+                } else if ((ball.x + radius > arrBricks[i].x && ball.x < arrBricks[i].x)
+                    && (ball.y - radius < arrBricks[i].y + heightBrick && ball.y > arrBricks[i].y + heightBrick)) { //check góc 1 dưới
+                    // alert('bat tao do goc 1')
+                    if (dX !== dY) {
+                        // alert('va trạm 1')
+                        dX = -dX;
+                        dY = -dY;
+                        arrBricks[i].status = false;
+                        score++;
+                        // document.getElementById('score').innerHTML = score;
+                    } else {
+                        // alert('va tram 1.1')
+                        if (dX < 0) {
+                            dY = -dY
+                            arrBricks[i].status = false;
+                            score++;
+                            // document.getElementById('score').innerHTML = score;
+                        } else {
+                            dX = -dX
+                            arrBricks[i].status = false;
+                            score++;
+                            // document.getElementById('score').innerHTML = score;
+                        }
+                    }
+
+                } else if (ball.x + radius > arrBricks[i].x && ball.x < arrBricks[i].x &&
+                    ball.y + radius > arrBricks[i].y && ball.y < arrBricks[i].y) {
+                    // alert(' vao tao do goc')
+                    if (dX === dY) {
+                        dX = -dX;
+                        dY = -dY;
+                        arrBricks[i].status = false;
+                        score++;
+                        // document.getElementById('score').innerHTML = score;
+                    } else {
+                        if (dX > 0) {
+                            dX = -dX
+                            arrBricks[i].status = false;
+                            score++;
+                            // document.getElementById('score').innerHTML = score;
+                        } else {
+                            dY = -dY;
+                            arrBricks[i].status = false;
+                            score++;
+                            // document.getElementById('score').innerHTML = score;
+                        }
+                    }
+                } else if (ball.x - radius < arrBricks[i].x + widthBrick && ball.x > arrBricks[i].x + widthBrick &&
+                    ball.y - radius < arrBricks[i].y + heightBrick && ball.y > arrBricks[i].y + heightBrick) {
+                    if (dX === dY) {
+                        // alert('va trạm 3')
+                        dX = -dX;
+                        dY = -dY;
+                        arrBricks[i].status = false;
+                        score++;
+                        // document.getElementById('score').innerHTML = score;
+                    } else {
+                        if (dX > 0) {
+                            dY = -dY
+                            arrBricks[i].status = false;
+                            score++;
+                            // document.getElementById('score').innerHTML = score;
+                        } else {
+                            dX = -dX
+                            arrBricks[i].status = false;
+                            score++;
+                            // document.getElementById('score').innerHTML = score;
+                        }
+                    }
+                } else if (ball.x - radius < arrBricks[i].x + widthBrick && ball.x > arrBricks[i].x + widthBrick &&
+                    ball.y + radius > arrBricks[i].y && ball.y < arrBricks[i].y) {
+                    if (dX !== dY) {
+                        dX = -dX;
+                        dY = -dY;
+                        arrBricks[i].status = false;
+                        score++;
+                        // document.getElementById('score').innerHTML = score;
+
+                    } else {
+                        if (dX > 0) {
+                            dY = -dY
+                            arrBricks[i].status = false;
+                            score++;
+                            // document.getElementById('score').innerHTML = score;
+
+                        } else {
+                            // alert('va tram')
+                            dX = -dX
+                            arrBricks[i].status = false;
+                            score++;
+                            // document.getElementById('score').innerHTML = score;
+
+                        }
+                    }
+                } else if ((ball.x + radius === arrBricks[i].x || ball.x - radius === arrBricks[i].x + widthBrick) &&
+                    (ball.y >= arrBricks[i].y && ball.y <= arrBricks[i].y + heightBrick)) {
+                    // alert('vao toa do bang')
+                    dX = -dX
+                    arrBricks[i].status = false;
+                    score++;
+                    // document.getElementById('score').innerHTML = score;
+                }
+
+            }
+
+        }
+        document.getElementById('score').innerHTML = score;
+    }
+
+    function drawBricks() {
+        for (let i = 0; i < arrBricks.length; i++) {
+            if (arrBricks[i].status) {
+                arrBricks[i].drawRect(ctx);
+            }
+        }
+    }
+
+    //clear khung canvas
+    function clearCanvas() {
+        ctx.clearRect(0, 0, widthCanvas, heightCanvas);
+    }
+</script>
+</html>
